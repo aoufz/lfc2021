@@ -6,7 +6,7 @@ INTEGER, PARAMETER :: N = 2**10
 REAL(KIND=KIND(0.0d0)), PARAMETER:: L = 20, pi=4*ATAN(1.d0)
 REAL(KIND=KIND(0.0d0)) :: deltax, deltak
 REAL(KIND=KIND(0.0d0)), DIMENSION(0:N-1,0:N-1) ::  H, kt
-COMPLEX(KIND=KIND(0.0d0)), DIMENSION(0:N-1) :: f, T
+COMPLEX(KIND=KIND(0.0d0)), DIMENSION(0:N-1, 0:N-1) :: f, T
 REAL(KIND=KIND(0.0d0)), DIMENSION(0:N-1) :: x, k
 INTEGER:: i, j, plan, o, p, q
 
@@ -25,12 +25,14 @@ DO o = 0:N-1
     END DO
 END DO
 
-f(:) = x(:)**2
+DO i = 0:N-1
+    f(:,i) = x(:)**2*exp(-sqrt(-1)*k(i)*x(:))
+END DO
 
-DO q = 0:N-1
-CALL dfftw_plan_dft_1d(plan,N,f,T,FFTW_forward,fftw_estimate)
-CALL dfftw_execute(plan,f,T)
-CALL dfftw_destroy_plan(plan)
-
+DO i = 0:N-1
+    CALL dfftw_plan_dft_1d(plan,N,f(:,i),T(:,i),FFTW_forward,fftw_estimate)
+    CALL dfftw_execute(plan,f,T)
+    CALL dfftw_destroy_plan(plan)
+END DO
 
 END PROGRAM
