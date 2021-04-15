@@ -12,14 +12,13 @@ with open(input_txt) as f:
 for index,line in enumerate(con):
     line_e = re.findall(r'\S+',line)
     if index == 0:
-        Lstart = float(line_e[0])
-        Lstop = float(line_e[1])
-        Lstep = float(line_e[2])
+        L = float(line_e[0])
+        tol = float(line_e[1])
     elif index == 1:
-        Nstart = float(line_e[0])
-        Nstop = float(line_e[1])
-        Nstep = float(line_e[2])
-        M = float(line_e[3])
+        Nstart = int(line_e[0])
+        Nstop = int(line_e[1])
+        Nstep = int(line_e[2])
+        M = int(line_e[3])
     elif index == 2:
         astart = float(line_e[0])
         astop = float(line_e[1])
@@ -27,20 +26,21 @@ for index,line in enumerate(con):
         x0 = float(line_e[3])
     elif index == 3:
         aval_txt = line_e[0][1:-1]
-        avec_txt = line_e[0][1:-1]
+        avec_txt = line_e[1][1:-1]
+        err_txt = line_e[2][1:-1]
         
 f.close()
 
 #creation of intervals
 n = np.arange(Nstart,Nstop,Nstep, dtype=int)
-l = np.arange(Lstart,Lstop,Lstep, dtype=float)
 a = np.arange(astart,astop,astep, dtype=float)
 
 evalues = []
+arr_info = []
 x = []
 evec = []
 
-#leggiamo i file riorganizzando i dati opportunamente-----------
+#data read
 with open(aval_txt) as f:
     con = f.readlines()
     
@@ -49,8 +49,12 @@ for index,line in enumerate(con):
     for i,item in enumerate(line_e):
         line_e[i] = float(item)
 
-    if index % 2 != 0: 
+    if index % 2 == 0: 
         evalues.append(line_e)
+    else:
+        arr_info.append(line_e)
+        
+
 
 f.close()
 
@@ -63,22 +67,42 @@ for index,line in enumerate(con):
     for i,item in enumerate(line_e):
         line_e[i] = float(item)
 
-    if(index % (M+2) != 0):
-        if(index % (M+2) == 1):
-            x.append(line_e)
-        else:
-            evec.append(line_e)
+    if(index % (M+1) == 0):
+        x.append(line_e)
+    else:
+        evec.append(line_e)
     
 f.close()
 #------------------------
 
 
 
-for alfa, ialfa in enumerate(a):
-    for g, ig in enumerate(l):
-        for eta, ieta in enumerate(n):
-            break
+a = list(np.arange(astart,astop,astep))
+if (astart-astop) % astep == 0: #fix per aggiungere l'estremo
+    a.append(astop)
 
+#per ogni valore di a faccio un grafico nella cartella figures
+for index, aeval in enumerate(evalues):
+    aevec = evec[index*M:(index+1)*M]
+    fig1, ax1 = plt.subplots(2,int(M/2),sharex= True, sharey = True, figsize = (8,6))
+    fig1.suptitle("Prime M="+str(M)+" autofunzioni per N="+str(arr_info[index][1])+", L="+str(L)+" e a="+str(a[index]))
+    
+    for axi in ax1.flat:
+        axi.label_outer()
+
+    for i in range(0,M):
+        if i < M/2:
+            ax1[0,i].plot(x[index],[0 for i in range(int(arr_info[index][1]))],linestyle='--')
+            ax1[0,i].plot(x[index],aevec[i], color = 'red')
+            ax1[0,i].title.set_text("aval: "+str(aeval[i]))
+        else:
+            ax1[1,i-int(M/2)].plot(x[index],[0 for i in range(int(arr_info[index][1]))],'--')
+            ax1[1,i-int(M/2)].plot(x[index],aevec[i], color = 'red')
+            ax1[1,i-int(M/2)].title.set_text("aval: "+str(aeval[i]))
+
+
+    plt.savefig('./figures/evec_graph_'+str(a[index])+'.jpg')
+    
 
 
 """

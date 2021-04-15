@@ -8,7 +8,7 @@ contains
  integer, intent (in)::N, switch
  integer :: j,k
  complex (kind=8), dimension (-N/2:N/2-1), intent(in) :: fd1
- complex (kind=8), dimension (-N/2:N/2-1), intent(out):: fd2
+ complex (kind=8), dimension (-N/2:N/2), intent(out):: fd2
  complex (kind=8) :: w,wk
 !
  if (switch==0) then
@@ -20,7 +20,7 @@ contains
  do k=-N/2,N/2-1
     fd2(k)=(0.,0.)
     wk= w**k
-    do j=-N/2,N/2-1
+    do j=-N/2,N/2
         fd2(k)=fd2(k)+fd1(j)*wk**j
     end do
     if (switch==0) then

@@ -24,11 +24,10 @@ MODULE mod_costr_morse
         INTEGER, INTENT(IN) :: N
         REAL(KIND = KIND(0.0d0)), INTENT(IN) :: L
         REAL(KIND = KIND(0.0d0)), INTENT(OUT) :: h
-        REAL(KIND = KIND(0.0d0)), DIMENSION(:), INTENT(OUT) :: x
+        REAL(KIND = KIND(0.0d0)), DIMENSION(1:N), INTENT(OUT) :: x
 
         h = L/REAL(N-1)
-        x(1) = 0
-	    x(2:) =(/ (x(1) + real(i-1)*h, i = 2,N) /)
+	    x =(/ ( real(i-1)*h, i = 1,N ) /)
 
                
    END SUBROUTINE
@@ -41,7 +40,7 @@ MODULE mod_costr_morse
 	REAL(KIND = KIND(0.0d0)), DIMENSION(SIZE(x)):: v
 
 	w(:) = -a*(x(:)-x0)
-	v(:) = (1 - exp(w(:)))**2
+	v(:) = (1 - exp(w(:)))**2 - 1
 
    END FUNCTION
  
