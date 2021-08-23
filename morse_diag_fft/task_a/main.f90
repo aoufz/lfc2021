@@ -1,20 +1,19 @@
 PROGRAM main
-	USE mod_result
+	USE mod_resolve
 	IMPLICIT NONE
 
-	!PARAMETRI CHE VERRANNO LETTI DA INPUT
+	!INIT
 	REAL(KIND = KIND(0.0d0)) ::  tol, L, astart, astop, astep, a, x0
 	INTEGER  ::  Nstart, Nstop, Nstep, M, ueval = 10, uevec = 11, unitinput = 12, uerr = 15, N
 	CHARACTER(LEN=10) :: filenameeval, filenameevec, filenameerr, filenameinput = 'input.txt'
 
-	!LAST CALCULATED EVALS E ISDONE, VARIABILI DI CONTROLLO ESECUZIONE
+	!LAST EVALS, ISDONE E CONTEGGIO STEP
 	REAL(KIND=KIND(0.d0)), ALLOCATABLE, DIMENSION(:) :: eval_last
 	LOGICAL :: isdone = .false.
 	INTEGER :: step_counter
 
-
+	!LETTURA DA FILE
 	OPEN(UNIT = unitinput, FILE = filenameinput, ACTION = 'READ')
-
 	
 	READ(unitinput, *) L, tol
 	READ(unitinput, *) Nstart, Nstop, Nstep, M 
@@ -23,9 +22,9 @@ PROGRAM main
 
 	CLOSE(UNIT = unitinput)
 
-
 	ALLOCATE(eval_last(M))
-	!ITERATION
+
+	!ITERAZIONE
 	OPEN(UNIT=ueval, FILE = filenameeval)
 	OPEN(UNIT=uevec, FILE = filenameevec)
 	OPEN(UNIT=uerr, FILE = filenameerr)
@@ -37,24 +36,26 @@ PROGRAM main
 		DO N = Nstart,Nstop,Nstep
     		CALL resolve(N,L,M,ueval,uevec,uerr,tol,a,x0,eval_last,isdone) 
 			IF (isdone) THEN
-				WRITE(ueval,*)  step_counter, N
+				WRITE(ueval,*)  step_counter, N, a
 				EXIT
 			END IF 
 			step_counter = step_counter + 1				
 		END DO
 
+		!CONTROLLO CONVERGENZA 
 		IF (isdone) THEN
 			isdone = .false.
 		ELSE			
-			PRINT *, "Nessuna convergenza nel range fornito per a = ",a
+			WRITE(*,*) "Nessuna convergenza nel range di N fornito per a = ",a
 		ENDIF
-		
+
 		a = a + astep
+
 	END DO
     
     CLOSE(ueval)
     CLOSE(uevec)
 	CLOSE(uerr)
 	DEALLOCATE(eval_last)
-	
+		
 END PROGRAM

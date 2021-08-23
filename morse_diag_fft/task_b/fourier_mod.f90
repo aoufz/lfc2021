@@ -5,6 +5,7 @@ INCLUDE 'fftw3.f'
 
 CONTAINS 
 
+!CREAZIONE GRIGLIE
 SUBROUTINE grids(L,N,x,k)
     IMPLICIT NONE
     INTEGER :: i
@@ -15,10 +16,9 @@ SUBROUTINE grids(L,N,x,k)
     
     dx = L/(dble(N))
     dk = 2*4*atan(1.0d0)/L
-    DO i = 0,N-1
-        x(i) = dble(i)*dx
-    END DO
 
+    x(:) = (/ (dble(i)*dx, i = 0,N-1) /)
+    
     DO i = 0, N/2-1
         k(i) = dble(i)*dk
     END DO
@@ -29,6 +29,7 @@ SUBROUTINE grids(L,N,x,k)
 
 END SUBROUTINE
 
+!FUNZIONE POTENZIALE MORSE
 FUNCTION v(a,x,x0)
 	IMPLICIT NONE
 	REAL(KIND = KIND(0.0d0)) :: a, x0
@@ -36,16 +37,16 @@ FUNCTION v(a,x,x0)
 	REAL(KIND = KIND(0.0d0)), DIMENSION(SIZE(x)) :: w
 	REAL(KIND = KIND(0.0d0)), DIMENSION(SIZE(x)):: v
 
-    !Potenziale morse
+    
 	w(:) = -a*(x(:)-x0)
-	v(:) = (1 - exp(w(:)))**2 - 1
+	v(:) = exp(2*w(:)) - 2*exp(w(:))
 
     !Potenziale armonico di prova
     !v(:) = (x-20)**2
 
 END FUNCTION
  
-
+!CALCOLO TRASFORMATA DI FOURIER
 SUBROUTINE fourier(f,N,trf)
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: N
@@ -57,10 +58,11 @@ SUBROUTINE fourier(f,N,trf)
     CALL dfftw_execute_dft(plan,dcmplx(f,0),trf)
     CALL dfftw_destroy_plan(plan)
 
-    trf(0:N-1) = (1/dble(N))*trf(0:N-1) !normalizzazione
+    trf(0:N-1) = (1/dble(N))*trf(0:N-1) !NORMALIZZAZIONE TRASFORMATA
     
 END SUBROUTINE
 
+!CREAZIONE HAMILTONIANA
 SUBROUTINE ham(H,k,trf,N,L)
 
     REAL(KIND=KIND(0.d0)), DIMENSION(0:N-1), INTENT(IN) :: k

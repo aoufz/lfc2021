@@ -1,74 +1,136 @@
 PROGRAM main
-USE fourier_mod
-USE eigen_mod
-IMPLICIT NONE
+    USE fourier_mod
+    USE eigen_mod
+    IMPLICIT NONE
 
-INTEGER, PARAMETER :: N = 2**9, M = 6
-REAL(KIND=KIND(0.0d0)), PARAMETER:: L = 40, pi=4*ATAN(1.d0), a = 1.5, x0 = 5, e = exp(1.d0)
-COMPLEX(KIND=KIND(0.0d0)), PARAMETER :: im = cmplx(0,1)
-COMPLEX(KIND=KIND(0.0d0)), DIMENSION(0:N-1) :: tf , tftemp
-REAL(KIND=KIND(0.0d0)), DIMENSION(0:N-1) :: x, k, f
-INTEGER:: i, j, plan, o, p
-COMPLEX(KIND=KIND(0.0d0)), DIMENSION(0:N-1,0:N-1) :: H
-REAL(KIND=KIND(0.0d0)), DIMENSION(0:N-1) :: eval
-COMPLEX(KIND=KIND(0.d0)),DIMENSION(0:N-1,0:N-1) :: evec
-COMPLEX(KIND=KIND(0.0d0)), DIMENSION(0:N-1,0:N-1):: coeff, VT
+    !INIT
+    INTEGER  :: Nstart, Nstop, Nstep, N, M, ueval=11, uevec = 12, unitinput = 13, uerr = 14
+    REAL(KIND=KIND(0.0d0)) :: L, a, astart, astop, astep, x0, tol
+    CHARACTER(LEN=10) :: filenameeval, filenameevec, filenameerr,filenameinput = 'input.txt'
+    !---
 
-!crea le griglie
-CALL grids(L,N,x,k)
+    !CONTROLLO
+    LOGICAL :: is_done
+    REAL(KIND=KIND(0.0d0)), ALLOCATABLE, DIMENSION(:) :: eval_last
+    !---
 
-f = v(a,x,x0)
+    INTEGER :: i,step_counter
+    REAL(KIND=KIND(0.d0)) :: err
+    CHARACTER(LEN=15):: fm_eval, fm_evec
+    REAL(KIND=KIND(0.0d0)), PARAMETER :: e = exp(1.d0), pi = 4*atan(1.d0)
+    COMPLEX(KIND=KIND(0.0d0)), PARAMETER :: im = cmplx(0,1)
+    COMPLEX(KIND=KIND(0.0d0)), ALLOCATABLE, DIMENSION(:) :: tf 
+    REAL(KIND=KIND(0.0d0)), ALLOCATABLE, DIMENSION(:) :: x, k, f
+    REAL(KIND=KIND(0.0d0)), ALLOCATABLE, DIMENSION(:) :: eval
+    COMPLEX(KIND=KIND(0.0d0)), ALLOCATABLE, DIMENSION(:,:) :: H, evec, coeff 
 
-!calcola la trasformata
-CALL fourier(f,N,tf)
 
-!CALCOLO VALORE TEORICO
-DO i = 0,N-1
-    DO j = 0,N-1
-        IF (i .ne. j) THEN
-            VT(i,j) = (4*exp(-20*im*(k(i)-k(j)))*((200*(k(i)-k(j))**2-1)*sin(20*(k(i)-k(j)))+20*(k(i)-k(j))&
-            &*cos(20*(k(i)-k(j)))))/((k(i)-k(j))**3*40)
-        else
-            VT(i,i) = L**2/12 + k(i)**2
-        ENDIF
+    !LETTURA DA FILE
+    OPEN(UNIT = unitinput, FILE = filenameinput, ACTION = 'READ')
+
+    READ(unitinput, *) Nstart, Nstop, Nstep, M
+    READ(unitinput, *) L, astart, astop, astep, x0
+    READ(unitinput, *) tol, filenameeval, filenameevec,filenameerr
+
+    CLOSE(unitinput)
+
+    ALLOCATE(eval_last(M))
+
+    OPEN(ueval, file=filenameeval, action='WRITE')
+    OPEN(uevec, file=filenameevec, action='WRITE')
+    OPEN(uerr, file=filenameerr, action='WRITE')
+ 
+    !ITERAZIONE
+    a = astart
+    DO WHILE (a>=astart .and. a<=astop)
+        eval_last(:) = 100
+        step_counter = 0
+        is_done = .false.
+    
+
+        DO N=Nstart,Nstop,Nstep
+            ALLOCATE(tf(0:N-1))
+            ALLOCATE(x(0:N-1))
+            ALLOCATE(k(0:N-1))
+            ALLOCATE(f(0:N-1))
+            ALLOCATE(H(0:N-1,0:N-1))
+            ALLOCATE(eval(M))
+            ALLOCATE(evec(M,0:N-1))
+            ALLOCATE(coeff(0:N-1,M))
+        
+            
+            !CREA GRIGLIE
+            CALL grids(L,N,x,k)
+
+            f = v(a,x,x0)
+
+            !CALCOLO TRASFORMATA
+            CALL fourier(f,N,tf)
+
+            !COSTRUZIONE HAMILTONIANA
+            CALL ham(H,k,tf,N,L)
+
+            !RISOLVE CON ZHEEVR
+            CALL resolve(N,H,coeff,eval,M,tol)
+ 
+            !CALCOLO AUTOVETTORI
+            CALL eigenvec(N,L,k,x,coeff,evec,M)
+
+            !CALCOLO ERRORI
+            err = maxval(abs(eval_last - eval))
+            WRITE(uerr,*) err 
+            
+            !CONVERGENZA
+            IF (err <= tol) THEN
+                WRITE(fm_eval,'(a,i2,a)') "(",M,"f10.5)"
+                WRITE(ueval,fm_eval) eval/2
+                WRITE(ueval,*) step_counter,N,a
+
+                WRITE(fm_evec,'(a,i4,a)') "(",N,"f10.5)"
+                WRITE(uevec,fm_evec) x
+                DO i = 1,M
+                    WRITE(uevec,fm_evec) real(evec(i,:))
+                END DO
+
+                is_done = .true.
+
+                DEALLOCATE(tf)
+                DEALLOCATE(x)
+                DEALLOCATE(k)
+                DEALLOCATE(f)
+                DEALLOCATE(H)
+                DEALLOCATE(eval)
+                DEALLOCATE(evec)
+                DEALLOCATE(coeff)
+
+                EXIT
+
+            END IF
+
+            !SETUP PROSSIMO CICLO
+            step_counter = step_counter + 1
+            eval_last = eval
+
+            DEALLOCATE(tf)
+            DEALLOCATE(x)
+            DEALLOCATE(k)
+            DEALLOCATE(f)
+            DEALLOCATE(H)
+            DEALLOCATE(eval)
+            DEALLOCATE(evec)
+            DEALLOCATE(coeff)
+        END DO
+
+        IF (.not. is_done) THEN
+            WRITE(*,*) "Nessuna convergenza nel range di N fornito per a =",a 
+        END IF
+        a = a + astep
+        
     END DO
-END DO
 
-!costruisce hamiltoniana
-CALL ham(H,k,tf,N,L)
-
-!risolve con zheevr
-CALL resolve(N,H,coeff,eval,M)
-
-!calcola autovettori
-CALL eigenvec(N,L,k,x,coeff,evec)
-
-
-
-!SCRITTURA SU FILE DEI DATI
-OPEN(16, file="output.txt", action='write')
-WRITE(16,*)"            x            k             f            RF               IF           "
-DO i= 0,N-1
-    WRITE(16,*) x(i), k(i), f(i), tf(i), VT(i,:)
-END DO
-CLOSE(16)
-
-OPEN(17, file="hamiltonian.txt",action='write')
-DO i = 0,N-1
-    WRITE(17,*) H(i,:)
-END DO
-CLOSE(17)
-
-OPEN(18, file="eval.txt", action="write")
-WRITE(18,"(6f10.5)") eval(0:M-1)/2
-WRITE(18,*) 0, N
-CLOSE(18)
-
-OPEN(19, file="evec.txt", action='write')
-WRITE(19,"(8192f10.5)") x
-DO i = 0,M-1
-    WRITE(19,"(8192f10.5)") real(evec(i,:))
-END DO
-CLOSE(19)
+    CLOSE(ueval)
+    CLOSE(uevec)
+    CLOSE(uerr)
+    DEALLOCATE(eval_last)
 
 END PROGRAM
